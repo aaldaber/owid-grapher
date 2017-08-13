@@ -20,6 +20,7 @@ from grapher_admin import views as admin_views
 from owid_grapher import views as owid_views
 from country_name_tool import views as countrytool_views
 from importer import views as importer_views
+from public_api import views as api_views
 from django.contrib.auth.views import logout
 
 urlpatterns = [
@@ -107,4 +108,17 @@ urlpatterns = [
     url(r'^grapher/(?P<slug>[^/]+)\.(?P<fileformat>.+)', owid_views.exportfile, name="exportfile"),
     url(r'^grapher/(?P<slug>[^/]+)/?$', owid_views.show, name="showchart"),
     url(r'^grapher/wdi/WDI_Country_info.xls$', importer_views.serve_wdi_country_info_xls, name='servewdicountryinfo'),
+
+    ### Public API endpoints for data export and visualization
+
+    url(r'^grapher/dataviewer/categories.json$', api_views.get_all_categories, name='apigetallcategories'),
+    url(r'^grapher/dataviewer/subcategories.json', api_views.get_subcategories, name='apigetsubcategories'),
+    url(r'^grapher/dataviewer/variables.json', api_views.get_variables, name='apigetvariables'),
+    url(r'^grapher/dataviewer/years.json', api_views.get_years, name='apigetyears'),
+    url(r'^grapher/dataviewer/entities.json', api_views.get_entities, name='apigetentities'),
+    url(r'^grapher/dataviewer/data.json', api_views.get_data, name='apigetdata'),
+    url(r'^grapher/dataviewer/metadata.json', api_views.get_metadata, name='apigetmetadata'),
+    url(r'^grapher/dataviewer/vardata/(?P<varid>\d+)\.js$', api_views.get_js_config, name='apigetjsconfig'),
+    url(r'^grapher/dataviewer/graph/(?P<varid>\d+)', api_views.serve_graph, name='apiservegraph'),
+
 ]
