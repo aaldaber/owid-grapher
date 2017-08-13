@@ -336,6 +336,7 @@ class Entity(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     displayName = models.CharField(db_column='displayName', max_length=255)
+    additional_info = models.CharField(max_length=255, null=True)
 
 
 class DataValue(models.Model):
