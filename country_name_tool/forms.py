@@ -41,10 +41,9 @@ def output_choices():
 
 
 class StandardizeCountries(forms.Form):
-    input_type = forms.ChoiceField(choices=input_choices(), label='Input Type')
-    output_type = forms.ChoiceField(choices=output_choices(), label='Output Type')
-    result_type = forms.ChoiceField(choices=[('file', 'Download as a file'), ('display', 'Show on the page')], label='Result format')
-    file = forms.FileField()
+    input_type = forms.ChoiceField(choices=input_choices(), label='Input Type (choose here the current format of the names that you want to standardize)')
+    output_type = forms.ChoiceField(choices=output_choices(), label='Output Type (choose here the desired format of the names that you want to standardize)')
+    file = forms.FileField(label='Choose your file - only CSV files')
     helper = FormHelper()
     helper.form_method = 'POST'
     helper.add_input(Submit('submit', 'Submit'))

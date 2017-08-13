@@ -1,0 +1,15 @@
+{% extends 'base_admin_template.html' %}
+
+{% block content %}
+	<h2>Variables sources</h2>
+    {% if source_list %}
+	    {% for each in source_list %}
+        <div style="border: 1px solid black">
+            <h2>{{ each.id }}</h2>
+            {% autoescape off %}
+            {{ each.html }}
+            {% endautoescape %}
+        </div>
+        {% endfor %}
+	{% endif %}
+{% endblock %}

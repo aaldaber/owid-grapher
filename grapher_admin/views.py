@@ -2020,3 +2020,33 @@ def treeview_datasets(request: HttpRequest):
     return render(request, 'admin.datasets.by.category.html', context={'current_user': request.user.name,
                                                                        'tree_json': tree_json
                                                                        })
+
+
+def display_owid_var_sources(request):
+    all_owid_vars = Variable.objects.filter(fk_dst_id__namespace='owid').order_by('pk')
+
+    owid_var_list = []
+    for each in all_owid_vars:
+        owid_var_list.append({
+            'id': each.pk,
+            'dataset_name': each.fk_dst_id.name,
+            'variable_name': each.name,
+            'variable_description': each.description,
+            'long_unit': each.unit,
+            'short_unit': each.short_unit,
+            'html': each.sourceId.description
+        })
+
+    return render(request, 'just_show_var_sources.html', context={'current_user': request.user.name,
+                                                                       'source_list': owid_var_list
+                                                                       })
+
+    # response = HttpResponse(content_type='text/csv')
+    # response['Content-Disposition'] = 'attachment; filename="countries.csv"'
+
+    # writer = csv.writer(response)
+    # writer.writerow(['var id', 'dataset name', 'variable name', 'variable description', 'long unit of measure', 'short unit of measure'])
+    # for each in owid_var_list:
+    #     writer.writerow([each['id'], each['dataset_name'], each['variable_name'], each['variable_description'], each['long_unit'], each['short_unit']])
+    #
+    # return response
