@@ -4,7 +4,7 @@
     <div class="alert alert-error">
         Some of the country names you uploaded did not match with country names we have in the database.
         To proceed, you will need to match the country names in red rows with names that are present in our database.
-        Please select the appropriate country from the dropdown list.
+        If you want to use custom names for certain countries, you can do so by entering them in the textbox.
     </div>
     {% if results %}
         <form id="submit" method="POST" action="{% url 'countrytoolpage' %}">
@@ -32,8 +32,8 @@
                             </select>
                     </td>
                     <td>
-                        <label for="{{ forloop.counter }}-textbox">Or enter the name manually:</label>
-                        <input class="form-control" type="text" id="{{ forloop.counter }}-textbox" name="{{ forloop.counter }}">
+                        <label for="{{ forloop.counter }}-textbox">Or enter custom name:</label>
+                        <input class="form-control" id="{{ forloop.counter }}-textbox" name="{{ forloop.counter }}">
                         </td>
                     </tr>
                 {% endif %}
@@ -51,6 +51,19 @@
                     $("select").change(function (event) {
                         data["selections"][$('#' + event.target.id.substr(0, event.target.id.indexOf('-')) + '-original').html()] = $('#' + event.target.id).val();
                     });
+            });
+
+            $(document).ready(function() {
+                $("input").change(function(event) {
+                    if ($('#' + event.target.id).val().length > 0) {
+                        $('#' + event.target.id.substr(0, event.target.id.indexOf('-')) + '-select').val("not selected");
+                        data["selections"][$('#' + event.target.id.substr(0, event.target.id.indexOf('-')) + '-original').html()] = {"custom_name": $('#' + event.target.id).val()};
+                    }
+                    else {
+                        $('#' + event.target.id.substr(0, event.target.id.indexOf('-')) + '-select').val("not selected");
+                        data["selections"][$('#' + event.target.id.substr(0, event.target.id.indexOf('-')) + '-original').html()] = "not selected";
+                    }
+                });
             });
 
             $("#submit").submit(function( event ) {

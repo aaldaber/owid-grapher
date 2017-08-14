@@ -16,8 +16,8 @@ from django.conf import settings
 from django.contrib import messages
 
 
-def randomword(length):
-    return ''.join(random.choice(string.ascii_lowercase) for i in range(length))
+def contains_alphabetic(country_name: str):
+    return any(each.isalpha() for each in country_name)
 
 
 def process_countries(country_list, input_type, output_type):
@@ -34,38 +34,41 @@ def process_countries(country_list, input_type, output_type):
         all_owid_country_names_dict = {each['id']: each['owid_name'] for each in all_owid_country_names}
         unique_country_names = {}
         for each in country_list:
-            if each.isalnum():
-                if each not in unique_country_names:
-                    if all_country_dict.get(each.lower(), 0):
-                        result_list.append(
-                            {'matched': True, 'country': all_country_dict[each.lower()].owid_name})
-                        unique_country_names[each] = {'matched': True, 'country': all_country_dict[each.lower()].owid_name}
-                    else:
-                        all_matched = False
-                        result_list.append({'matched': False, 'country': []})
-                        scores_for_owid_names = {}
-                        scores_for_variations = {}
-                        for one in all_owid_country_names:
-                            scores_for_owid_names[one['id']] = {'score': fuzz.partial_ratio(each.lower(), one['owid_name'].lower())}
+            if "----custom_name----" not in each:
+                if contains_alphabetic(each):
+                    if each not in unique_country_names:
+                        if all_country_dict.get(each.lower(), 0):
+                            result_list.append(
+                                {'matched': True, 'country': all_country_dict[each.lower()].owid_name})
+                            unique_country_names[each] = {'matched': True, 'country': all_country_dict[each.lower()].owid_name}
+                        else:
+                            all_matched = False
+                            result_list.append({'matched': False, 'country': []})
+                            scores_for_owid_names = {}
+                            scores_for_variations = {}
+                            for one in all_owid_country_names:
+                                scores_for_owid_names[one['id']] = {'score': fuzz.partial_ratio(each.lower(), one['owid_name'].lower())}
 
-                        for countryname, countryobject in all_country_dict.items():
-                            if countryobject.pk in scores_for_variations:
-                                scores_for_variations[countryobject.pk]['score'] = (scores_for_variations[countryobject.pk][
-                                                                                        'score'] + fuzz.partial_ratio(each.lower(),
-                                                                                                                      countryname.lower())) / 2
-                            else:
-                                scores_for_variations[countryobject.pk] = {
-                                    'score': fuzz.partial_ratio(each.lower(), countryname.lower())}
-                        for country_id, country_score in scores_for_owid_names.items():
-                            result_list[len(result_list) - 1]['country'].append(
-                                {'score': (country_score['score'] +
-                                           scores_for_variations.get(country_id, {'score': country_score['score']})['score']) / 2,
-                                 'countryid': country_id})
-                        result_list[len(result_list) - 1]['country'] = sorted(result_list[len(result_list) - 1]['country'],
-                                                                       key=lambda x: x['score'], reverse=True)
-                        unique_country_names[each] = result_list[len(result_list) - 1]
+                            for countryname, countryobject in all_country_dict.items():
+                                if countryobject.pk in scores_for_variations:
+                                    scores_for_variations[countryobject.pk]['score'] = (scores_for_variations[countryobject.pk][
+                                                                                            'score'] + fuzz.partial_ratio(each.lower(),
+                                                                                                                          countryname.lower())) / 2
+                                else:
+                                    scores_for_variations[countryobject.pk] = {
+                                        'score': fuzz.partial_ratio(each.lower(), countryname.lower())}
+                            for country_id, country_score in scores_for_owid_names.items():
+                                result_list[len(result_list) - 1]['country'].append(
+                                    {'score': (country_score['score'] +
+                                               scores_for_variations.get(country_id, {'score': country_score['score']})['score']) / 2,
+                                     'countryid': country_id})
+                            result_list[len(result_list) - 1]['country'] = sorted(result_list[len(result_list) - 1]['country'],
+                                                                           key=lambda x: x['score'], reverse=True)
+                            unique_country_names[each] = result_list[len(result_list) - 1]
+                    else:
+                        result_list.append(unique_country_names[each])
                 else:
-                    result_list.append(unique_country_names[each])
+                    result_list.append({'matched': True, 'country': each})
             else:
                 result_list.append({'matched': True, 'country': each})
     else:
@@ -111,7 +114,9 @@ def process_countries(country_list, input_type, output_type):
     if (input_type != 'country_name') or (input_type == 'country_name' and all_matched):
         result_list = []
         for each in country_list:
-            if all_country_dict.get(each.lower(), 0):
+            if "----custom_name----" in each:
+                result_list.append(each.split("----custom_name----")[1])
+            elif all_country_dict.get(each.lower(), 0):
                 if output_type == 'owid_name':
                     if all_country_dict[each.lower()].owid_name:
                         result_list.append(all_country_dict[each.lower()].owid_name)
@@ -202,7 +207,7 @@ def country_tool_page(request):
                 country_list = []
                 other_data = {}
                 file = form.cleaned_data['file'].read()
-                original_filename = form.cleaned_data['file'].name
+                original_filename = os.path.splitext(form.cleaned_data['file'].name)[0]
                 try:
                     file = file.decode('utf-8')
                 except UnicodeDecodeError:
@@ -237,7 +242,7 @@ def country_tool_page(request):
                             if each_header != 'Country':
                                 data[i+1].append(other_data[each_header][i])
                     response = HttpResponse(content_type='text/csv')
-                    response['Content-Disposition'] = 'attachment; filename="countries.csv"'
+                    response['Content-Disposition'] = 'attachment; filename="%s_countries_standardized.csv"' % original_filename
 
                     writer = csv.writer(response)
 
@@ -273,7 +278,11 @@ def country_tool_page(request):
                         else:
                             data[i + 1].append(0)
                     return render(request, 'country_tool.match.html',
-                                  context={'current_user': request.user.name, 'results': results, 'owid_countries_dict': owid_countries_dict, 'data': json.dumps({'selections': selections, 'country_data': data, 'output_type': output_type})})
+                                  context={'current_user': request.user.name, 'results': results,
+                                           'owid_countries_dict': owid_countries_dict,
+                                           'data': json.dumps({'selections': selections, 'country_data': data,
+                                                               'output_type': output_type,
+                                                               'filename': original_filename})})
 
             else:
                 return render(request, 'country_tool.index.html', context={'current_user': request.user.name, 'form': form})
@@ -291,6 +300,7 @@ def country_tool_page(request):
             output_type = jsdata['output_type']
             selections = jsdata['selections']
             json_data = jsdata['country_data']
+            original_filename = jsdata['filename']
             csv_headers = json_data[0][2:]
             country_list = []
             other_data = {}
@@ -300,18 +310,27 @@ def country_tool_page(request):
 
             for i in range(1, len(json_data)):
                 if not json_data[i][len(json_data[i]) - 1] and json_data[i][0] not in country_list:
-                    new_country_name = CountryName()
-                    owid_country_name = CountryData.objects.filter(owid_name=selections[json_data[i][0]])
-                    if not owid_country_name:
-                        return JsonResponse({'error': 'An error occurred'}, safe=False)
+                    if not isinstance(selections[json_data[i][0]], dict):  # checking if the selection contains a custom name
+                        new_country_name = CountryName()
+                        owid_country_name = CountryData.objects.filter(owid_name=selections[json_data[i][0]])
+                        if not owid_country_name:
+                            return JsonResponse({'error': 'An error occurred'}, safe=False)
+                        else:
+                            owid_country_name = owid_country_name[0]
+                        new_country_name.country_name = unidecode.unidecode(json_data[i][0])
+                        new_country_name.owid_country = owid_country_name
+
+                        new_country_name.save()
+
+                if selections.get(json_data[i][0]):
+                    if not isinstance(selections[json_data[i][0]],
+                                      dict):  # checking if the selection contains a custom name
+                        country_list.append(json_data[i][0])
                     else:
-                        owid_country_name = owid_country_name[0]
-                    new_country_name.country_name = unidecode.unidecode(json_data[i][0])
-                    new_country_name.owid_country = owid_country_name
-
-                    new_country_name.save()
-
-                country_list.append(json_data[i][0])
+                        # sending the custom name to process_countries with a special separator, so that we can skip matching these countries
+                        country_list.append(json_data[i][0] + "----custom_name----" + selections[json_data[i][0]]["custom_name"])
+                else:
+                    country_list.append(json_data[i][0])
                 varcounter = 0
                 for variable in csv_headers:
                     other_data[variable].append(json_data[i][2 + varcounter])
@@ -325,10 +344,10 @@ def country_tool_page(request):
                 for each_header in csv_headers:
                     data[0].append(each_header)
                 for i in range(0, len(result_list)):
-                    data.append([country_list[i], result_list[i]])
+                    data.append([country_list[i] if "----custom_name----" not in country_list[i] else country_list[i].split("----custom_name----")[0], result_list[i]])
                     for each_header in csv_headers:
                         data[i + 1].append(other_data[each_header][i])
-                filename = randomword(8) + '.csv'
+                filename = "%s_countries_standardized.csv" % original_filename
                 file = os.path.join(country_tool_csv_save_location, filename)
 
                 with open(file, 'w', encoding='utf8') as f:
@@ -345,7 +364,7 @@ def servecsv(request, filename):
     country_tool_csv_save_location = settings.BASE_DIR + '/data/country_tool/csvs/'
     if os.path.isfile(os.path.join(country_tool_csv_save_location, filename)):
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="%s"' % 'countries.csv'
+        response['Content-Disposition'] = 'attachment; filename="%s"' % filename
         with open(os.path.join(country_tool_csv_save_location, filename), 'r', encoding='utf8') as f:
             response.write(f.read())
         return response
