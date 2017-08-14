@@ -202,6 +202,7 @@ def country_tool_page(request):
                 country_list = []
                 other_data = {}
                 file = form.cleaned_data['file'].read()
+                original_filename = form.cleaned_data['file'].name
                 try:
                     file = file.decode('utf-8')
                 except UnicodeDecodeError:
