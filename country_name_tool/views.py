@@ -1,8 +1,6 @@
 import csv
 import json
 import os
-import random
-import string
 import unidecode
 from fuzzywuzzy import fuzz
 from io import StringIO
@@ -24,7 +22,7 @@ def process_countries(country_list, input_type, output_type):
     all_matched = True
     result_list = []
 
-    if input_type == 'country_name':
+    if input_type == 'country_name' and output_type == 'owid_name':
         all_country_names = CountryName.objects.all()
         all_country_dict = {}
         for each in all_country_names:
@@ -68,50 +66,61 @@ def process_countries(country_list, input_type, output_type):
                     else:
                         result_list.append(unique_country_names[each])
                 else:
-                    result_list.append({'matched': True, 'country': each})
+                    result_list.append({'matched': True, 'country': each, 'nonalphanumeric': 1})
             else:
                 result_list.append({'matched': True, 'country': each})
     else:
         all_country_names = CountryData.objects.all()
         all_country_dict = {}
+        if input_type == 'country_name':
+            for each in CountryName.objects.all():
+                all_country_dict[each.country_name.lower()] = each.owid_country
         if input_type == 'owid_name':
             for each in all_country_names:
-                all_country_dict[each.owid_name.lower()] = each
-        if input_type == 'owid_code':
-            for each in all_country_names:
-                all_country_dict[each.owid_code.lower()] = each
+                if each.owid_name:
+                    all_country_dict[each.owid_name.lower()] = each
         if input_type == 'iso_alpha3':
             for each in all_country_names:
-                all_country_dict[each.iso_alpha3.lower()] = each
+                if each.iso_alpha3:
+                    all_country_dict[each.iso_alpha3.lower()] = each
         if input_type == 'iso_alpha2':
             for each in all_country_names:
-                all_country_dict[each.iso_alpha2.lower()] = each
+                if each.iso_alpha2:
+                    all_country_dict[each.iso_alpha2.lower()] = each
         if input_type == 'imf_code':
             for each in all_country_names:
-                all_country_dict[str(each.imf_code).lower()] = each
+                if each.imf_code:
+                    all_country_dict[str(each.imf_code).lower()] = each
         if input_type == 'cow_letter':
             for each in all_country_names:
-                all_country_dict[each.cow_letter.lower()] = each
+                if each.cow_letter:
+                    all_country_dict[each.cow_letter.lower()] = each
         if input_type == 'cow_code':
             for each in all_country_names:
-                all_country_dict[str(each.cow_code).lower()] = each
+                if each.cow_code:
+                    all_country_dict[str(each.cow_code).lower()] = each
         if input_type == 'unctad_code':
             for each in all_country_names:
-                all_country_dict[each.unctad_code.lower()] = each
+                if each.unctad_code:
+                    all_country_dict[each.unctad_code.lower()] = each
         if input_type == 'marc_code':
             for each in all_country_names:
-                all_country_dict[each.marc_code.lower()] = each
+                if each.marc_code:
+                    all_country_dict[each.marc_code.lower()] = each
         if input_type == 'ncd_code':
             for each in all_country_names:
-                all_country_dict[each.ncd_code.lower()] = each
+                if each.ncd_code:
+                    all_country_dict[each.ncd_code.lower()] = each
         if input_type == 'kansas_code':
             for each in all_country_names:
-                all_country_dict[each.kansas_code.lower()] = each
+                if each.kansas_code:
+                    all_country_dict[each.kansas_code.lower()] = each
         if input_type == 'penn_code':
             for each in all_country_names:
-                all_country_dict[each.penn_code.lower()] = each
+                if each.penn_code:
+                    all_country_dict[each.penn_code.lower()] = each
 
-    if (input_type != 'country_name') or (input_type == 'country_name' and all_matched):
+    if (input_type != 'country_name') or (input_type == 'country_name' and all_matched and output_type == 'owid_name') or (input_type == 'country_name' and output_type != 'owid_name'):
         result_list = []
         for each in country_list:
             if "----custom_name----" in each:
@@ -120,11 +129,6 @@ def process_countries(country_list, input_type, output_type):
                 if output_type == 'owid_name':
                     if all_country_dict[each.lower()].owid_name:
                         result_list.append(all_country_dict[each.lower()].owid_name)
-                    else:
-                        result_list.append('')
-                if output_type == 'owid_code':
-                    if all_country_dict[each.lower()].owid_code:
-                        result_list.append(all_country_dict[each.lower()].owid_code)
                     else:
                         result_list.append('')
                 if output_type == 'iso_alpha2':
@@ -189,7 +193,7 @@ def process_countries(country_list, input_type, output_type):
                         result_list.append('')
             else:
                 result_list.append('')
-    if input_type == 'country_name':
+    if input_type == 'country_name' and output_type == 'owid_name':
         return {'result': result_list, 'all_matched': all_matched,
                 'all_owid_country_names': all_owid_country_names_dict}
     else:
@@ -217,6 +221,10 @@ def country_tool_page(request):
                 output_type = form.cleaned_data['output_type']
                 country_dict = csv.DictReader(StringIO(file))
                 csv_headers = country_dict.fieldnames
+                if 'Country' not in csv_headers:
+                    messages.error(request, "We couldn't find the input in your file. Please check column headers and upload again")
+                    return render(request, 'country_tool.index.html',
+                                  context={'current_user': request.user.name, 'form': form})
                 for each_header in csv_headers:
                     if each_header != 'Country':
                         other_data[each_header] = []
@@ -263,6 +271,10 @@ def country_tool_page(request):
                                 results.append({'original': country_list[i], 'new': result_list[i]})
                                 unique_country_names[country_list[i]] = 1
                                 selections[country_list[i]] = 'not selected'
+                        elif result_list[i].get('nonalphanumeric'):
+                            if country_list[i] not in unique_country_names:
+                                results.append({'original': country_list[i], 'new': result_list[i], 'nonalphanumeric': 1})
+                                unique_country_names[country_list[i]] = 1
                     data = []
                     data.append(['Country', 'OWID_NAME'])
                     for each_header in csv_headers:
@@ -388,8 +400,6 @@ def country_tool_update(request):
                         if not seen_countries.get(row['owid_name'], 0):
                             newcountry = CountryData()
                             newcountry.owid_name = row['owid_name']
-                            if row.get('owid_code', 0):
-                                newcountry.owid_code = row['owid_code']
                             if row.get('iso_alpha2', 0):
                                 newcountry.iso_alpha2 = row['iso_alpha2']
                             if row.get('iso_alpha3', 0):
@@ -482,10 +492,10 @@ def serve_country_tool_data(request):
     response['Content-Disposition'] = 'attachment; filename="data_for_country_tool.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(['country_name', 'owid_name', 'owid_code', 'iso_alpha3', 'iso_alpha2', 'imf_code', 'cow_letter',
+    writer.writerow(['country_name', 'owid_name', 'iso_alpha3', 'iso_alpha2', 'imf_code', 'cow_letter',
                      'cow_code', 'unctad_code', 'marc_code', 'ncd_code', 'kansas_code', 'penn_code', 'continent'])
     for each in all_country_data:
-        writer.writerow([each.country_name, each.owid_country.owid_name, each.owid_country.owid_code,
+        writer.writerow([each.country_name, each.owid_country.owid_name,
                          each.owid_country.iso_alpha3, each.owid_country.iso_alpha2, each.owid_country.imf_code,
                          each.owid_country.cow_letter, each.owid_country.cow_code, each.owid_country.unctad_code,
                          each.owid_country.marc_code, each.owid_country.ncd_code, each.owid_country.kansas_code,

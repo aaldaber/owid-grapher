@@ -7,7 +7,6 @@ def input_choices():
     return [
         ('country_name', 'COUNTRY NAME'),
         ('owid_name', 'OUR WORLD IN DATA NAME'),
-        ('owid_code', 'OUR WORLD IN DATA CODE'),
         ('iso_alpha3', 'ISO 3166-1 ALPHA-3 CODE'),
         ('iso_alpha2', 'ISO 3166-1 ALPHA-2 CODE'),
         ('imf_code', 'IMF COUNTRY CODE'),
@@ -24,7 +23,6 @@ def input_choices():
 def output_choices():
     return [
         ('owid_name', 'OUR WORLD IN DATA NAME'),
-        ('owid_code', 'OUR WORLD IN DATA CODE'),
         ('iso_alpha3', 'ISO 3166-1 ALPHA-3 CODE'),
         ('iso_alpha2', 'ISO 3166-1 ALPHA-2 CODE'),
         ('continent_name', 'CONTINENT NAME'),

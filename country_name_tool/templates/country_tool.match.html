@@ -37,6 +37,13 @@
                         </td>
                     </tr>
                 {% endif %}
+                {% if result.nonalphanumeric %}
+                <tr class="table-warning">
+                    <td>{{ result.original }}</td>
+                <td></td>
+                <td></td>
+                    </tr>
+                {% endif %}
 			{% endfor %}
 		</tbody>
 	</table>
